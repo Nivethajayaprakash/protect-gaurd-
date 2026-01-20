@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProctorGuard | AI Exam Integrity System</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --font: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: var(--font);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- UTILITIES --- */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .p-4 { padding: 1rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mt-4 { margin-top: 1rem; }
+        .text-sm { font-size: 0.875rem; }
+        .font-bold { font-weight: 700; }
+        .w-full { width: 100%; }
+        
+        /* --- BUTTONS & INPUTS --- */
+        button { cursor: pointer; border: none; border-radius: 6px; padding: 10px 20px; font-weight: 600; font-family: inherit; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-outline:hover { border-color: var(--text-main); color: var(--text-main); }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+        input, select, textarea {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            width: 100%;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        input:focus, textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+        /* --- LAYOUT --- */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 50;
+        }
+
+        main { flex: 1; overflow-y: auto; position: relative; padding: 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+        /* --- AUTH --- */
+        .auth-container { max-width: 400px; margin: 80px auto; }
+        .auth-card { background: var(--bg-card); padding: 30px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .role-switch { display: flex; background: var(--bg-dark); padding: 4px; border-radius: 8px; margin-bottom: 20px; }
+        .role-btn { flex: 1; padding: 8px; border-radius: 6px; color: var(--text-muted); cursor: pointer; }
+        .role-btn.active { background: var(--bg-card); color: white; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+        /* --- DASHBOARD GRIDS --- */
+        .dashboard-grid { display: grid; grid-template-columns: 250px 1fr; gap: 24px; height: 100%; }
+        .sidebar { background: var(--bg-card); border-radius: 8px; padding: 16px; height: fit-content; border: 1px solid var(--border); }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 12px; color: var(--text-muted); border-radius: 6px; cursor: pointer; margin-bottom: 4px; }
+        .nav-item:hover, .nav-item.active { background: rgba(59, 130, 246, 0.1); color: var(--primary); }
+
+        /* --- QUESTION BUILDER --- */
+        .q-builder-card { background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: 8px; margin-bottom: 20px; position: relative; }
+        .remove-q { position: absolute; top: 15px; right: 15px; color: var(--danger); cursor: pointer; }
+        .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+        /* --- EXAM TAKING UI --- */
+        .exam-layout { display: grid; grid-template-columns: 1fr 350px; gap: 24px; height: calc(100vh - 120px); }
+        
+        .questions-area { overflow-y: auto; padding-right: 10px; }
+        .q-card { background: var(--bg-card); padding: 24px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .q-badge { font-size: 0.75rem; background: var(--bg-input); padding: 4px 8px; border-radius: 4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* MCQ Styling Fix */
+        .mcq-option { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: 0.2s; background: rgba(0,0,0,0.2); }
+        .mcq-option:hover { background: rgba(255,255,255,0.05); border-color: var(--primary); }
+        .mcq-option input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
+
+        .q-image { max-width: 100%; max-height: 250px; border-radius: 6px; border: 1px solid var(--border); margin: 15px 0; display: block; }
+
+        /* PROCTOR SIDEBAR */
+        .proctor-sidebar { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 20px; height: fit-content; position: sticky; top: 0; }
+        .cam-box { position: relative; width: 100%; aspect-ratio: 4/3; background: black; border-radius: 6px; overflow: hidden; border: 2px solid var(--border); }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        /* HUD Overlay */
+        .hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .face-box { position: absolute; border: 2px solid var(--success); width: 50%; height: 40%; top: 30%; left: 25%; transition: all 0.2s; box-shadow: 0 0 10px var(--success); }
+        .face-box.danger { border-color: var(--danger); box-shadow: 0 0 15px var(--danger); }
+
+        .trust-meter { text-align: center; }
+        .meter-bg { width: 100%; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .meter-fill { height: 100%; background: var(--success); width: 100%; transition: width 0.5s, background 0.5s; }
+        
+        .log-console { background: black; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.75rem; height: 150px; overflow-y: auto; color: #22c55e; }
+        .log-err { color: var(--danger); }
+
+        /* --- MODALS & TOASTS --- */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: var(--bg-card); width: 90%; max-width: 600px; padding: 30px; border-radius: 12px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; }
+        
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: var(--bg-card); border-left: 4px solid var(--primary); padding: 15px 20px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); color: white; min-width: 300px; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* TABLES */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 500; }
+        .score-high { color: var(--danger); font-weight: bold; }
+        .score-low { color: var(--success); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- HEADER -->
+    <header>
+        <div class="flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <span class="font-bold text-lg">ProctorGuard AI</span>
+        </div>
+        <div id="user-nav" class="flex items-center gap-4 hidden">
+            <span id="user-name" class="text-sm text-muted">User</span>
+            <button class="btn btn-outline btn-sm" onclick="app.logout()">Logout</button>
+        </div>
+    </header>
+
+    <main id="app-root">
+        
+        <!-- 1. LOGIN / REGISTER -->
+        <section id="view-auth" class="auth-container">
+            <div class="auth-card">
+                <h2 class="mb-4">System Access</h2>
+                <div class="role-switch">
+                    <div class="role-btn active" onclick="auth.setRole('student')">Student</div>
+                    <div class="role-btn" onclick="auth.setRole('faculty')">Faculty / Org</div>
+                </div>
+                <form onsubmit="auth.login(event)">
+                    <input type="email" id="login-email" placeholder="Email Address" required="">
+                    <input type="password" id="login-pass" placeholder="Password" required="">
+                    <button type="submit" class="btn btn-primary w-full mt-4">Login / Register</button>
+                </form>
+                <p class="text-sm text-muted mt-4">Note: Registering automatically creates your account.</p>
+            </div>
+        </section>
+
+        <!-- 2. FACULTY DASHBOARD -->
+        <section id="view-faculty" class="hidden dashboard-grid">
+            <aside class="sidebar">
+                <div class="nav-item active" onclick="faculty.showSection('create')">📝 Create Exam</div>
+                <div class="nav-item" onclick="faculty.showSection('list')">📊 Review Submissions</div>
+            </aside>
+            
+            <div id="fac-create">
+                <div class="card mb-4">
+                    <h2 class="mb-4">Upload New Assessment</h2>
+                    <label class="text-sm text-muted">Exam Title</label>
+                    <input type="text" id="exam-title" placeholder="e.g., Data Structures Final">
+                    
+                    <label class="text-sm text-muted">Duration (Minutes)</label>
+                    <input type="number" id="exam-duration" value="30">
+                </div>
+
+                <div class="flex gap-4 mb-4">
+                    <button class="btn btn-outline w-full" onclick="faculty.addMCQ()">+ Add MCQ</button>
+                    <button class="btn btn-outline w-full" onclick="faculty.addTheory()">+ Add Theory</button>
+                    <button class="btn btn-outline w-full" onclick="faculty.addImage()">+ Add Image</button>
+                </div>
+
+                <div id="questions-list">
+                    <!-- Questions go here -->
+                </div>
+
+                <button class="btn btn-success w-full mt-4" onclick="faculty.publishExam()">Publish Exam</button>
+            </div>
+
+            <div id="fac-list" class="hidden">
+                <h2 class="mb-4">Exam Submissions</h2>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Exam</th>
+                                <th>Date</th>
+                                <th>Integrity Score</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissions-table">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. STUDENT DASHBOARD -->
+        <section id="view-student" class="hidden">
+            <h2 class="mb-4">Available Exams</h2>
+            <div id="exam-list-container" class="flex flex-col gap-4">
+                <!-- Exam Cards -->
+            </div>
+        </section>
+
+        <!-- 4. RULES MODAL -->
+        <div id="modal-rules" class="modal hidden">
+            <div class="modal-content">
+                <h2 style="color: var(--danger); margin-bottom: 20px;">⚠️ Examination Rules</h2>
+                <ul class="text-sm text-muted pl-6 mb-6 list-disc space-y-2">
+                    <li><strong>Full Camera Monitoring:</strong> Your webcam must remain on. Leaving the frame flags a warning.</li>
+                    <li><strong>Tab Switching:</strong> Switching tabs or windows is strictly prohibited and will result in immediate failure.</li>
+                    <li><strong>Gaze Tracking:</strong> The AI tracks your head movement. Looking away frequently lowers your score.</li>
+                    <li><strong>Timer:</strong> The exam auto-submits when time reaches zero.</li>
+                </ul>
+                <div class="flex justify-end gap-2">
+                    <button class="btn btn-outline" onclick="app.closeModal('modal-rules')">Cancel</button>
+                    <button class="btn btn-primary" onclick="examSession.confirmStart()">I Agree, Start Camera</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. EXAM INTERFACE -->
+        <section id="view-exam" class="hidden" style="padding: 0;">
+            <div class="exam-layout">
+                <!-- Left: Questions -->
+                <div class="p-4 questions-area" id="questions-render">
+                    <!-- Questions Rendered Here -->
+                </div>
+
+                <!-- Right: Proctoring -->
+                <div class="proctor-sidebar">
+                    <div class="text-center">
+                        <div class="text-sm text-muted">Time Remaining</div>
+                        <div id="timer-display" style="font-size: 2rem; font-family: monospace;">00:00</div>
+                    </div>
+
+                    <div class="cam-box">
+                        <video id="webcam" autoplay="" playsinline="" muted=""></video>
+                        <div class="hud">
+                            <div id="face-tracker" class="face-box"></div>
+                        </div>
+                        <div class="absolute bottom-2 right-2 text-xs text-red-500 flex items-center gap-1">
+                            <span style="width: 8px; height: 8px; background: red; border-radius: 50%;"></span> LIVE AI
+                        </div>
+                    </div>
+
+                    <div class="trust-meter">
+                        <div class="flex justify-between text-sm">
+                            <span>Trust Score</span>
+                            <span id="score-text">100%</span>
+                        </div>
+                        <div class="meter-bg">
+                            <div id="score-bar" class="meter-fill"></div>
+                        </div>
+                        <div id="alert-msg" class="text-xs text-danger mt-1 h-4 font-bold"></div>
+                    </div>
+
+                    <div class="log-console" id="log-console">
+                        <div>[System] AI Engine Initialized...</div>
+                    </div>
+
+                    <button id="submit-btn" class="btn btn-primary w-full" onclick="examSession.submitExam()">Submit Exam</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. GRADING DETAIL MODAL -->
+        <div id="modal-grading" class="modal hidden">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="flex justify-between items-center mb-4">
+                    <h2>Grading Details</h2>
+                    <span class="btn btn-outline btn-sm" onclick="app.closeModal('modal-grading')">Close</span>
+                </div>
+                <div id="grading-content"></div>
+            </div>
+        </div>
+
+    </main>
+
+<script>
+    /* --- DATABASE (LocalStorage) --- */
+    const DB = {
+        get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
+        set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
+        
+        users: () => DB.get('users'),
+        addUser: (u) => {
+            const users = DB.users();
+            if(users.find(x => x.email === u.email)) return false;
+            users.push(u);
+            DB.set('users', users);
+            return true;
+        },
+        
+        exams: () => DB.get('exams'),
+        saveExam: (e) => {
+            const exams = DB.exams();
+            exams.push(e);
+            DB.set('exams', exams);
+        },
+        
+        subs: () => DB.get('submissions'),
+        saveSub: (s) => {
+            const subs = DB.subs();
+            subs.push(s);
+            DB.set('submissions', subs);
+        }
+    };
+
+    /* --- STATE --- */
+    const state = {
+        user: null,
+        role: 'student',
+        exam: null,
+        timerInt: null,
+        proctoring: {
+            score: 100,
+            logs: [],
+            active: false,
+            stream: null,
+            tabSwitches: 0
+        }
+    };
+
+    /* --- AUTH --- */
+    const auth = {
+        setRole: (r) => {
+            state.role = r;
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        },
+        login: (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            
+            let user = DB.users().find(u => u.email === email && u.pass === pass);
+            if(!user) {
+                // Register
+                user = { email, pass, role: state.role };
+                DB.addUser(user);
+                app.toast(`New account created for ${email}`, 'success');
+            } else if (user.role !== state.role) {
+                return app.toast('Role mismatch for this account', 'error');
+            }
+
+            state.user = user;
+            document.getElementById('user-name').innerText = email;
+            document.getElementById('user-nav').classList.remove('hidden');
+            document.getElementById('view-auth').classList.add('hidden');
+
+            if(state.role === 'faculty') faculty.init();
+            else student.init();
+        }
+    };
+
+    const app = {
+        logout: () => location.reload(),
+        toast: (msg, type='info') => {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.style.borderLeftColor = type === 'error' ? 'var(--danger)' : 'var(--primary)';
+            t.innerText = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        },
+        closeModal: (id) => document.getElementById(id).classList.add('hidden')
+    };
+
+    /* --- FACULTY --- */
+    const faculty = {
+        qCount: 0,
+        init: () => {
+            document.getElementById('view-faculty').classList.remove('hidden');
+        },
+        showSection: (id) => {
+            document.getElementById('fac-create').classList.add('hidden');
+            document.getElementById('fac-list').classList.add('hidden');
+            document.getElementById(`fac-${id}`).classList.remove('hidden');
+            if(id === 'list') faculty.renderTable();
+        },
+        addMCQ: () => {
+            faculty.qCount++;
+            const html = `
+            <div class="q-builder-card" id="q-${faculty.qCount}">
+                <span class="remove-q" onclick="this.parentElement.remove()">×</span>
+                <label class="text-sm text-muted">Question Text</label>
+                <input type="text" class="q-text mb-4" placeholder="Enter question here...">
+                <input type="hidden" class="q-type" value="mcq">
+                <label class="text-sm text-muted">Options (A, B, C, D)</label>
+                <div class="option-grid">
+                    <input type="text" class="opt-1" placeholder="Option A">
+                    <input type="text" class="opt-2" placeholder="Option B">
+                    <input type="text" class="opt-3" placeholder="Option C">
+                    <input type="text" class="opt-4" placeholder="Option D">
+                </div>
+                <label class="text-sm text-muted">Correct Answer</label>
+                <select class="correct-ans">
+                    <option value="0">Option A</option>
+                    <option value="1">Option B</option>
+                    <option value="2">Option C</option>
+                    <option value="3">Option D</option>
+                </select>
+            </div>`;
+            document.getElementById('questions-list').insertAdjacentHTML('beforeend', html);
+        },
+        addTheory: () => {
+            faculty.qCount++;
+            const html = `
+            <div class="q-builder-card" id="q-${faculty.qCount}">
+                <span class="remove-q" onclick="this.parentElement.remove()">×</span>
+                <label class="text-sm text-muted">Question Text</label>
+                <input type="text" class="q-text mb-4" placeholder="Enter theoretical question here...">
+                <input type="hidden" class="q-type" value="theory">
+                <p class="text-sm text-muted">Student will answer via text input.</p>
+            </div>`;
+            document.getElementById('questions-list').insertAdjacentHTML('beforeend', html);
+        },
+        addImage: () => {
+            faculty.qCount++;
+            const html = `
+            <div class="q-builder-card" id="q-${faculty.qCount}">
+                <span class="remove-q" onclick="this.parentElement.remove()">×</span>
+                <label class="text-sm text-muted">Question Text</label>
+                <input type="text" class="q-text mb-4" placeholder="Describe the image or answer question...">
+                <input type="hidden" class="q-type" value="image">
+                <label class="text-sm text-muted">Image URL</label>
+                <input type="text" class="q-img-url mb-2" placeholder="https://..." value="https://picsum.photos/seed/${faculty.qCount}/400/200">
+            </div>`;
+            document.getElementById('questions-list').insertAdjacentHTML('beforeend', html);
+        },
+        publishExam: () => {
+            const title = document.getElementById('exam-title').value;
+            const duration = parseInt(document.getElementById('exam-duration').value);
+            const qCards = document.querySelectorAll('.q-builder-card');
+            
+            if(!title || qCards.length === 0) return app.toast('Title and Questions required', 'error');
+
+            const questions = [];
+            qCards.forEach(card => {
+                const q = {
+                    id: Date.now() + Math.random(),
+                    text: card.querySelector('.q-text').value,
+                    type: card.querySelector('.q-type').value
+                };
+
+                if(q.type === 'mcq') {
+                    q.options = [
+                        card.querySelector('.opt-1').value,
+                        card.querySelector('.opt-2').value,
+                        card.querySelector('.opt-3').value,
+                        card.querySelector('.opt-4').value
+                    ];
+                    q.correct = parseInt(card.querySelector('.correct-ans').value);
+                } else if (q.type === 'image') {
+                    q.imgUrl = card.querySelector('.q-img-url').value;
+                }
+                questions.push(q);
+            });
+
+            DB.saveExam({
+                id: Date.now(),
+                faculty: state.user.email,
+                title,
+                duration,
+                questions,
+                date: new Date().toLocaleDateString()
+            });
+
+            app.toast('Exam Published Successfully!');
+            document.getElementById('questions-list').innerHTML = '';
+            document.getElementById('exam-title').value = '';
+        },
+        renderTable: () => {
+            const subs = DB.subs();
+            const exams = DB.exams();
+            const tbody = document.getElementById('submissions-table');
+            tbody.innerHTML = '';
+
+            subs.forEach(sub => {
+                const exam = exams.find(e => e.id === sub.examId);
+                const row = `
+                <tr>
+                    <td>${sub.studentEmail}</td>
+                    <td>${exam ? exam.title : 'Deleted'}</td>
+                    <td>${sub.date}</td>
+                    <td class="${sub.score < 50 ? 'score-high' : 'score-low'}">${sub.score}%</td>
+                    <td><button class="btn btn-outline btn-sm" onclick="faculty.review(${sub.id})">Review</button></td>
+                </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+            if(subs.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="text-center">No submissions yet.</td></tr>';
+        },
+        review: (subId) => {
+            const sub = DB.subs().find(s => s.id === subId);
+            const exam = DB.exams().find(e => e.id === sub.examId);
+            const container = document.getElementById('grading-content');
+            
+            let html = `<div class="flex justify-between mb-4 border-b pb-2">
+                <div>
+                    <h3>Student: ${sub.studentEmail}</h3>
+                    <p class="text-sm text-muted">Exam: ${exam.title}</p>
+                </div>
+                <div class="text-right">
+                    <h3>Trust Score: <span class="${sub.score < 50 ? 'text-danger' : 'text-success'}">${sub.score}%</span></h3>
+                    <p class="text-sm text-muted">Tab Switches: ${sub.logs.filter(l => l.msg.includes('Tab')).length}</p>
+                </div>
+            </div>`;
+
+            exam.questions.forEach((q, i) => {
+                const ans = sub.answers[q.id];
+                html += `<div class="bg-dark p-3 rounded mb-2 border border-gray-700">
+                    <div class="font-bold mb-1">Q${i+1} (${q.type})</div>
+                    <div class="text-sm mb-2">${q.text}</div>
+                    ${q.type === 'mcq' ? `<div class="bg-gray-800 p-2 rounded text-sm">Selected: ${q.options[ans]}</div>` : ''}
+                    ${q.type === 'theory' || q.type === 'image' ? `<div class="bg-gray-800 p-2 rounded text-sm">Answer: ${ans || 'No Answer'}</div>` : ''}
+                </div>`;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('modal-grading').classList.remove('hidden');
+        }
+    };
+
+    /* --- STUDENT --- */
+    const student = {
+        init: () => {
+            document.getElementById('view-student').classList.remove('hidden');
+            student.loadExams();
+        },
+        loadExams: () => {
+            const list = document.getElementById('exam-list-container');
+            const exams = DB.exams();
+            const taken = DB.subs().filter(s => s.studentEmail === state.user.email).map(s => s.examId);
+            
+            list.innerHTML = exams.filter(e => !taken.includes(e.id)).map(e => `
+                <div class="card p-4 border rounded bg-card flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold">${e.title}</h3>
+                        <p class="text-sm text-muted">Duration: ${e.duration} mins • Questions: ${e.questions.length}</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="student.startPrep(${e.id})">Start</button>
+                </div>
+            `).join('');
+            
+            if(list.innerHTML === '') list.innerHTML = '<p class="text-center text-muted">No available exams.</p>';
+        },
+        startPrep: (id) => {
+            state.exam = DB.exams().find(e => e.id === id);
+            document.getElementById('modal-rules').classList.remove('hidden');
+        }
+    };
+
+    /* --- EXAM SESSION & PROCTORING --- */
+    const examSession = {
+        confirmStart: async () => {
+            app.closeModal('modal-rules');
+            // Start Camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('webcam').srcObject = stream;
+                state.proctoring.stream = stream;
+            } catch(e) {
+                alert("Camera access is required. Please allow permissions.");
+                return;
+            }
+
+            document.getElementById('view-student').classList.add('hidden');
+            document.getElementById('view-exam').classList.remove('hidden');
+
+            // Setup State
+            state.proctoring.score = 100;
+            state.proctoring.logs = [];
+            state.proctoring.active = true;
+            state.proctoring.tabSwitches = 0;
+            
+            // Render Questions
+            examSession.renderQuestions();
+            
+            // Start Timer
+            let timeLeft = state.exam.duration * 60;
+            const timerEl = document.getElementById('timer-display');
+            timerEl.innerText = formatTime(timeLeft);
+            
+            state.timerInt = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = formatTime(timeLeft);
+                if(timeLeft <= 0) {
+                    clearInterval(state.timerInt);
+                    document.getElementById('submit-btn').classList.add('hidden'); // Hide button
+                    app.toast("Time Up! Auto-submitting...", "error");
+                    examSession.submitExam();
+                }
+            }, 1000);
+
+            // Listeners
+            document.addEventListener('visibilitychange', examSession.handleVisibility);
+            examSession.simulateTracking();
+        },
+
+        renderQuestions: () => {
+            const area = document.getElementById('questions-render');
+            area.innerHTML = state.exam.questions.map((q, i) => {
+                let content = `<div class="q-badge mb-2">Question ${i+1} (${q.type})</div><h3 class="mb-4">${q.text}</h3>`;
+                
+                if(q.type === 'mcq') {
+                    content += q.options.map((opt, idx) => `
+                        <label class="mcq-option">
+                            <input type="radio" name="q_${q.id}" value="${idx}">
+                            ${opt}
+                        </label>
+                    `).join('');
+                } else if (q.type === 'image') {
+                    content += `<img src="${q.imgUrl}" class="q-image">`;
+                    content += `<textarea id="ans_${q.id}" rows="4" placeholder="Type your answer here..."></textarea>`;
+                } else {
+                    content += `<textarea id="ans_${q.id}" rows="6" placeholder="Type your answer here..."></textarea>`;
+                }
+                return `<div class="q-card">${content}</div>`;
+            }).join('');
+        },
+
+        handleVisibility: () => {
+            if(!state.proctoring.active) return;
+            if(document.hidden) {
+                examSession.log("Tab Switch / Focus Lost", "high");
+                examSession.penalize(30);
+                state.proctoring.tabSwitches++;
+                
+                // Visual warning
+                const w = document.createElement('div');
+                w.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(239,68,68,0.9);z-index:9999;color:white;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-direction:column;";
+                w.innerHTML = "<div>⚠️ WARNING</div><div>Tab Switch Detected</div>";
+                document.body.appendChild(w);
+                setTimeout(() => w.remove(), 2000);
+            }
+        },
+
+        simulateTracking: () => {
+            // Moves the green face box randomly to simulate AI tracking
+            const box = document.getElementById('face-tracker');
+            let t = 0;
+            const loop = () => {
+                if(!state.proctoring.active) return;
+                t += 0.05;
+                const x = 25 + Math.sin(t)*5;
+                const y = 30 + Math.cos(t)*3;
+                box.style.left = x + '%';
+                box.style.top = y + '%';
+                
+                if(Math.random() > 0.98) {
+                    // Random fake alert
+                    box.classList.add('danger');
+                    examSession.log("Gaze Divergence", "low");
+                    setTimeout(() => box.classList.remove('danger'), 1000);
+                }
+                requestAnimationFrame(loop);
+            };
+            loop();
+        },
+
+        log: (msg, level) => {
+            const log = document.getElementById('log-console');
+            log.insertAdjacentHTML('beforeend', `<div class="${level==='high'?'log-err':''}">[${new Date().toLocaleTimeString()}] ${msg}</div>`);
+            log.scrollTop = log.scrollHeight;
+            state.proctoring.logs.push({ time: Date.now(), msg, level });
+        },
+
+        penalize: (amount) => {
+            state.proctoring.score = Math.max(0, state.proctoring.score - amount);
+            const el = document.getElementById('score-bar');
+            const txt = document.getElementById('score-text');
+            
+            el.style.width = state.proctoring.score + '%';
+            txt.innerText = state.proctoring.score + '%';
+            
+            if(state.proctoring.score < 50) {
+                el.style.background = 'var(--danger)';
+                document.getElementById('alert-msg').innerText = "HIGH RISK DETECTED";
+            } else if (state.proctoring.score < 80) {
+                el.style.background = 'var(--warning)';
+            }
+        },
+
+        submitExam: () => {
+            if(!confirm("Submit Exam?")) return;
+            state.proctoring.active = false;
+            clearInterval(state.timerInt);
+            
+            // Collect Answers
+            const answers = {};
+            state.exam.questions.forEach(q => {
+                if(q.type === 'mcq') {
+                    const checked = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                    answers[q.id] = checked ? checked.value : -1;
+                } else {
+                    answers[q.id] = document.getElementById(`ans_${q.id}`).value;
+                }
+            });
+
+            DB.saveSub({
+                id: Date.now(),
+                examId: state.exam.id,
+                studentEmail: state.user.email,
+                answers,
+                score: state.proctoring.score,
+                logs: state.proctoring.logs,
+                date: new Date().toLocaleString()
+            });
+
+            // Cleanup
+            if(state.proctoring.stream) state.proctoring.stream.getTracks().forEach(t => t.stop());
+            document.removeEventListener('visibilitychange', examSession.handleVisibility);
+            
+            location.reload(); // Simple reload to go back to dashboard
+        }
+    };
+
+    function formatTime(s) {
+        const m = Math.floor(s/60);
+        const sec = s%60;
+        return `${m}:${sec.toString().padStart(2,'0')}`;
+    }
+</script>
+
+</body></html>
